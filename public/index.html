@@ -2,31 +2,79 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Socket.io Test</title>
+    <title>Cursor Demo</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Damit kein Scrollbalken erscheint */
+        background-color: white;
+        position: relative;
+        height: 100vh;
+        width: 100vw;
+      }
+      .cursor-dot {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background-color: black;
+        border-radius: 50%;
+        pointer-events: none; /* Maus ignoriert den Kreis */
+      }
+    </style>
   </head>
   <body>
-    <h1>Test Socket.io</h1>
-    <input id="msgInput" type="text" placeholder="Nachricht..." />
-    <button id="sendBtn">Senden</button>
-    <ul id="messages"></ul>
+    <div id="cursor-container"></div>
 
     <!-- Socket.io-Client -->
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-      const socket = io(); // verbindet automatisch zum selben Host
-      const msgInput = document.getElementById('msgInput');
-      const sendBtn = document.getElementById('sendBtn');
-      const messages = document.getElementById('messages');
 
-      sendBtn.addEventListener('click', () => {
-        socket.emit('message', msgInput.value);
-        msgInput.value = '';
+    <script>
+      // Verbindung zu unserem Socket.io-Server aufbauen
+      // (Läuft über die gleiche URL wie unsere Website, also kein URL-Parameter nötig)
+      const socket = io();
+
+      // Ein Objekt, das alle aktiven Cursor speichert, z. B.:
+      // { "socketID123": { x: 100, y: 200, element: <div> }, ... }
+      let cursors = {};
+
+      // Wenn die Maus bewegt wird, schicken wir Position zum Server
+      document.addEventListener("mousemove", (e) => {
+        socket.emit("cursor", { x: e.clientX, y: e.clientY });
       });
 
-      socket.on('message', (data) => {
-        const li = document.createElement('li');
-        li.textContent = data.id + ': ' + data.text;
-        messages.appendChild(li);
+      // Server sendet "cursor": { id, x, y } -> Cursor-Position eines Spielers
+      socket.on("cursor", (data) => {
+        const { id, x, y } = data;
+
+        // Falls wir diesen Cursor noch nicht kennen, erzeugen wir ein neues DOM-Element
+        if (!cursors[id]) {
+          const dot = document.createElement("div");
+          dot.classList.add("cursor-dot");
+          document.body.appendChild(dot);
+
+          cursors[id] = {
+            x,
+            y,
+            element: dot,
+          };
+        }
+
+        // Position aktualisieren
+        cursors[id].x = x;
+        cursors[id].y = y;
+        cursors[id].element.style.left = x + "px";
+        cursors[id].element.style.top = y + "px";
+      });
+
+      // Server sendet, dass ein Player disconnected ist -> Cursor entfernen
+      socket.on("playerDisconnected", (disconnectedId) => {
+        if (cursors[disconnectedId]) {
+          // Cursor-Element aus dem DOM entfernen
+          document.body.removeChild(cursors[disconnectedId].element);
+          // Eintrag aus unserem Objekt löschen
+          delete cursors[disconnectedId];
+        }
       });
     </script>
   </body>
