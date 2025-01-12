@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/eberlekim/io-game/issues"
   },
-  "homepage": "https://github.com/eberlekim/io-game#readme"
+  "homepage": "https://github.com/eberlekim/io-game#readme",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
 }
