@@ -1,16 +1,33 @@
-// index.js
 const express = require('express');
-const app = express();
+const http = require('http');
+const { Server } = require('socket.io');
 
-// Port von Render kommt aus process.env.PORT, fallback auf 3001 (lokal)
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
 const PORT = process.env.PORT || 3001;
 
-// Eine Test-Route
+// Einfaches Test-Route
 app.get('/', (req, res) => {
-  res.send('Hallo duda, from Node.js via Express!');
+  res.send('Hallo aus Express und Socket.io!');
+});
+
+// Socket.io-Logik
+io.on('connection', (socket) => {
+  console.log('Ein User ist verbunden: ', socket.id);
+
+  // Beispiel-Event: Sobald einer "message" schickt, leiten wir es an alle weiter
+  socket.on('message', (text) => {
+    io.emit('message', { id: socket.id, text });
+  });
 });
 
 // Server starten
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
+
+
+app.use(express.static('public'));
