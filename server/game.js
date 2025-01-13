@@ -1,63 +1,100 @@
-/***********************************************************
- * server/game.js
- *   - Hauptspiel-Logik: verwaltet players, 
- *     initialisiert Events, ruft handlePhysics() auf.
- ************************************************************/
 const Player = require('./player');
+const Npc = require('./npc');
 const { handlePhysics } = require('./physics');
-const { FPS } = require('./config');
+const {
+  FPS,
+  SCORE_PER_SECOND,
+  MAX_LEVEL,
+  FIELD_WIDTH,
+  FIELD_HEIGHT
+} = require('./config');
 
-// In diesem Objekt halten wir alle Player-Instanzen
-// key = socket.id, value = Player
 const players = {};
 
-/**
- * Init-Funktion, die wir in index.js aufrufen,
- * damit wir Zugriff auf das 'io' (Socket.io) haben.
- */
+function getRequiredScoreForNextLevel(level) {
+  const base = 500, factor = 1.3;
+  return Math.floor(base * Math.pow(factor, level));
+}
+
 function initGame(io) {
+  // 10 NPCs auf zufälligen Positionen
+  for (let i = 1; i <= 10; i++) {
+    spawnNpc("AI_" + i);
+  }
 
-  // Socket.io Events
-  io.on('connection', (socket) => {
-    console.log('Neuer Spieler:', socket.id);
+  io.on('connection', socket => {
+    console.log("New client:", socket.id);
 
-    // Player anlegen
-    players[socket.id] = new Player(socket.id);
-
-    // Wenn Client WASD/Boost schickt
-    socket.on('moveKeys', (keys) => {
-      if (players[socket.id]) {
-        players[socket.id].up    = keys.up;
-        players[socket.id].down  = keys.down;
-        players[socket.id].left  = keys.left;
-        players[socket.id].right = keys.right;
-        players[socket.id].boost = keys.boost;
+    socket.on('spawnPlayer', () => {
+      if (!players[socket.id]) {
+        players[socket.id] = new Player(socket.id);
+        console.log(`[DEBUG] spawn player ${socket.id}`);
       }
     });
 
-    // (Optional) Client sendet Name
-    socket.on('playerName', (name) => {
-      if (players[socket.id]) {
-        players[socket.id].name = name || 'Unknown';
+    socket.on('playerName', name => {
+      const p = players[socket.id];
+      if (p) p.name = name || 'Unknown';
+    });
+
+    socket.on('moveKeys', keys => {
+      const p = players[socket.id];
+      if (p && !p.dead) {
+        p.up = keys.up; 
+        p.down = keys.down;
+        p.left = keys.left;
+        p.right = keys.right;
+        p.boost = keys.boost;
       }
     });
 
-    // Disconnect
     socket.on('disconnect', () => {
-      console.log('Disconnected:', socket.id);
+      console.log("disconnect", socket.id);
       delete players[socket.id];
     });
   });
 
-  // Game Loop
   setInterval(() => {
-    // 1) Physik aktualisieren
+    // Score & Level
+    for (const id in players) {
+      const p = players[id];
+      if (!p.dead && !p.isAi) {
+        p.score += SCORE_PER_SECOND;
+        if (p.level < MAX_LEVEL) {
+          const r = getRequiredScoreForNextLevel(p.level);
+          if (p.score >= r) {
+            p.level++;
+            console.log(`Level up: ${id} => ${p.level}`);
+          }
+        }
+      }
+    }
+
     handlePhysics(players);
 
-    // 2) State an alle senden
-    //    (Clients rendern das)
+    // Tote entfernen (Player) bzw. respawnen (NPC)
+    for (const id in players) {
+      const p = players[id];
+      if (p.dead && !p.isAi) {
+        console.log(`[DEBUG] removing dead player ${id}`);
+        delete players[id];
+      } else if (p.dead && p.isAi) {
+        console.log(`[DEBUG] NPC dead => respawn`);
+        spawnNpc(id);
+      }
+    }
+
     io.emit('state', players);
   }, 1000 / FPS);
+}
+
+function spawnNpc(nid) {
+  const npc = new Npc(nid);
+  // Zufällige Position im 500x500-Feld
+  npc.x = Math.random() * FIELD_WIDTH;
+  npc.y = Math.random() * FIELD_HEIGHT;
+  players[nid] = npc;
+  console.log(`[DEBUG] spawn NPC ${nid}`);
 }
 
 module.exports = initGame;

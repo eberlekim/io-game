@@ -1,21 +1,20 @@
-/***********************************************************
- * server/config.js
- *   - Zentrale Konstanten für das Spiel
- ************************************************************/
 module.exports = {
-  // Spielfeld
-  FIELD_WIDTH: 2000,
-  FIELD_HEIGHT: 2000,
+  FIELD_WIDTH: 500,
+  FIELD_HEIGHT: 500,
 
-  // Physik
-  ACCELERATION: 0.2, // Stärke bei WASD
-  FRICTION: 0.98,    // "Eis"-Effekt
+  ACCELERATION: 0.2,
+  FRICTION: 0.98,
   PLAYER_RADIUS: 10,
 
-  // Boost
-  BOOST_STRENGTH: 1.5,
-  BOOST_COOLDOWN: 5000, // 5 Sekunden
+  // Neu hinzugefügt für NPC-Sterne (SVG ca. 61×61):
+  // Damit die Kollision realistisch funktioniert, nehmen wir ~30 px Radius.
+  NPC_RADIUS: 30,
 
-  // Ticks pro Sekunde (GameLoop)
-  FPS: 60
+  BOOST_STRENGTH: 1.5,
+  BOOST_COOLDOWN: 5000,
+
+  FPS: 60,
+  MAX_LEVEL: 100,
+
+  SCORE_PER_SECOND: 50
 };

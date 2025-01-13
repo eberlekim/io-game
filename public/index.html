@@ -1,31 +1,26 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>io-game</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <!-- Ein Startscreen -->
-    <div id="startScreen">
-      <h1>Willkommen!</h1>
-      <input id="nameInput" placeholder="Dein Name" />
-      <button id="startBtn">Start Game</button>
-    </div>
+<head>
+  <meta charset="utf-8">
+  <title>io-game minimal</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="startScreen">
+    <h1>Willkommen!</h1>
+    <input id="nameInput" placeholder="Dein Name" />
+    <button id="startBtn">Start Game</button>
+  </div>
 
-    <!-- Canvas hier -->
-    <canvas id="gameCanvas"></canvas>
+  <canvas id="gameCanvas"></canvas>
 
-    <!-- (Optional) Deathscreen -->
-    <div id="deathScreen">
-      <h1>Du bist raus!</h1>
-      <p>Score: <span id="deathScore">0</span></p>
-      <button id="retryBtn">Nochmal versuchen</button>
-    </div>
+  <div id="deathScreen">
+    <h1>Du bist raus!</h1>
+    Score: <span id="deathScore">0</span>
+    <button id="retryBtn">Nochmal</button>
+  </div>
 
-    <!-- Socket.io Client -->
-    <script src="/socket.io/socket.io.js"></script>
-    <!-- Unser Client-Code -->
-    <script src="main.js"></script>
-  </body>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="main.js"></script>
+</body>
 </html>

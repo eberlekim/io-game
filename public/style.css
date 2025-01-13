@@ -1,17 +1,14 @@
-/* public/style.css */
-
-/* Einfaches Styling */
 body, html {
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  background-color: #ccc;
   font-family: sans-serif;
+  background-color: #ccc;
 }
 
+/* Canvas füllt ganze Seite und wird per JS aktualisiert */
 #gameCanvas {
-  display: none; /* Zuerst versteckt, bis wir starten */
-  background-color: #ccc;
+  display: none; 
+  background: #eee;
 }
 
 #startScreen,
@@ -20,7 +17,7 @@ body, html {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: #eee;
+  background: #eee;
   border: 2px solid #333;
   padding: 20px;
   text-align: center;
@@ -31,8 +28,8 @@ body, html {
 }
 
 input, button {
-  display: block;
   margin: 10px auto;
   font-size: 16px;
   padding: 6px 12px;
+  display: block;
 }
