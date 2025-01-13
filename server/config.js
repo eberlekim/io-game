@@ -5,10 +5,7 @@ module.exports = {
   ACCELERATION: 0.2,
   FRICTION: 0.98,
   PLAYER_RADIUS: 10,
-
-  // Neu hinzugefügt für NPC-Sterne (SVG ca. 61×61):
-  // Damit die Kollision realistisch funktioniert, nehmen wir ~30 px Radius.
-  NPC_RADIUS: 30,
+  NPC_RADIUS: 30, // Für Sternen-Kollision in passender Größe
 
   BOOST_STRENGTH: 1.5,
   BOOST_COOLDOWN: 5000,

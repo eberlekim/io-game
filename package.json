@@ -2,24 +2,13 @@
   "name": "io-game",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js", 
+    "start": "node server/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/eberlekim/io-game.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/eberlekim/io-game/issues"
-  },
-  "homepage": "https://github.com/eberlekim/io-game#readme",
   "dependencies": {
     "express": "^4.21.2",
-    "socket.io": "^4.8.1"
+    "ws": "^8.18.0"
   }
 }

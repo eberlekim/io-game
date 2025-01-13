@@ -3,6 +3,7 @@ const { FIELD_WIDTH, FIELD_HEIGHT } = require('./config');
 class Player {
   constructor(id) {
     this.id = id;
+    // Standard-Spawn: Mitte
     this.x = FIELD_WIDTH / 2;
     this.y = FIELD_HEIGHT / 2;
     this.vx = 0;

@@ -5,7 +5,6 @@ body, html {
   background-color: #ccc;
 }
 
-/* Canvas füllt ganze Seite und wird per JS aktualisiert */
 #gameCanvas {
   display: none; 
   background: #eee;

@@ -1,28 +1,30 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
+const { WebSocketServer } = require('ws');
+
 const initGame = require('./game');
 
 const app = express();
 
-// CSP-Middleware: Erlaubt (testweise) unsafe-eval
+// OPTIONAL: CSP für 'unsafe-eval' (nur falls du willst/testest)
 app.use((req, res, next) => {
   res.setHeader("Content-Security-Policy", "script-src 'self' 'unsafe-eval';");
   next();
 });
 
-const server = http.createServer(app);
-const io = new Server(server);
-
-// Statische Dateien bereitstellen
+// Statische Dateien ausliefern
 app.use(express.static('public'));
 
-// Dein Spiel initialisieren
-initGame(io);
+const server = http.createServer(app);
 
+// WebSocket-Server an das HTTP-Server-Objekt anhängen
+const wss = new WebSocketServer({ server });
+
+// Dein Spiel initialisieren
+initGame(wss);
+
+// Start
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`[SERVER] listening on port ${PORT}`);
 });
-
-
