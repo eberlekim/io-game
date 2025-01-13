@@ -10,16 +10,16 @@ const retryBtn = document.getElementById('retryBtn');
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Canvas
+// Canvas soll das ganze Browserfenster ausfüllen
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// WebSocket
-let ws = null;
-let myId = null;
-let players = {};
+let ws = null;   // WebSocket
+let myId = null; // Eigene Player-ID, vom Server zugewiesen
+let players = {}; 
 let isAlive = false;
 
+// Start-Button
 startBtn.addEventListener('click', () => {
   const name = nameInput.value.trim() || 'NoName';
   connectWs(name);
@@ -30,12 +30,13 @@ startBtn.addEventListener('click', () => {
   isAlive = true;
 });
 
+// Retry-Button
 retryBtn.addEventListener('click', () => {
   location.reload();
 });
 
 // Eingaben
-let inputKeys = { up:false, down:false, left:false, right:false, boost:false };
+let inputKeys = { up: false, down: false, left: false, right: false, boost: false };
 
 window.addEventListener('keydown', e => {
   switch(e.key) {
@@ -66,34 +67,45 @@ window.addEventListener('keyup', e => {
   sendMoveKeys();
 });
 
-function connectWs(name) {
-  // Lokaler Test: ws://localhost:3001
-  // Auf Render: wss://deinprojekt.onrender.com
-  ws = new WebSocket(`ws://${location.hostname}:${location.port}`);
-  
+/**
+ * Stellt eine WebSocket-Verbindung zum Server her.
+ * Nutzt automatisch "wss://" wenn die Seite per HTTPS erreichbar ist,
+ * und "ws://" bei HTTP. So vermeidet man Mixed-Content-Fehler.
+ */
+function connectWs(playerName) {
+  const protocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+  const port = location.port ? (':' + location.port) : ''; 
+  const host = location.hostname;  
+
+  // Bsp: wss://mein-spiel.onrender.com  oder ws://localhost:3001
+  ws = new WebSocket(`${protocol}//${host}${port}`);
+
   ws.onopen = () => {
     console.log("WS connected");
-    ws.send(JSON.stringify({ type:'spawnPlayer' }));
-    ws.send(JSON.stringify({ type:'playerName', name }));
+    // Sobald offen, teilen wir dem Server mit, dass wir spawnen wollen
+    ws.send(JSON.stringify({ type: 'spawnPlayer' }));
+    // ... und unseren Namen
+    ws.send(JSON.stringify({ type: 'playerName', name: playerName }));
   };
-  
+
   ws.onmessage = (evt) => {
     let msg;
     try {
       msg = JSON.parse(evt.data);
-    } catch(e) {
-      console.error("Invalid JSON", evt.data);
+    } catch (e) {
+      console.error("Invalid JSON from server:", evt.data);
       return;
     }
 
-    // WICHTIG: Du bekommst hier 'yourId' und 'state'
+    // Wir unterscheiden anhand von msg.type
     if (msg.type === 'yourId') {
+      // Server teilt uns unsere Player-ID mit
       myId = msg.id;
       console.log("Got myId:", myId);
 
     } else if (msg.type === 'state') {
+      // Kompletter Spielzustand
       players = msg.players;
-      // Wenn wir unsere ID haben, checken wir, ob wir tot sind.
       if (myId) {
         const me = players[myId];
         if (!me || me.dead) {
@@ -103,7 +115,7 @@ function connectWs(name) {
       }
 
     } else {
-      console.log("Unknown msg type", msg.type);
+      console.log("Unknown message type:", msg.type);
     }
   };
 
@@ -113,6 +125,7 @@ function connectWs(name) {
   };
 }
 
+/** Sendet unsere Eingaben an den Server */
 function sendMoveKeys() {
   if (!ws) return;
   ws.send(JSON.stringify({
@@ -125,6 +138,7 @@ function sendMoveKeys() {
   }));
 }
 
+/** Zeigt den Deathscreen, blendet Canvas aus */
 function showDeathScreen() {
   if (players[myId]) {
     deathScore.textContent = players[myId].score || 0;
@@ -133,27 +147,27 @@ function showDeathScreen() {
   canvas.style.display = 'none';
 }
 
-// Render
+/** Haupt-Render-Loop */
 function gameLoop() {
   requestAnimationFrame(gameLoop);
   if (!isAlive) return;
-  if (!myId) return; // Solange wir unsere ID nicht kennen, nix anzeigen.
+  if (!myId) return; // Warten bis wir unsere ID haben
 
   const me = players[myId];
-  if (!me) return;
+  if (!me) return;   // Falls noch kein Eintrag existiert
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Kamera-Offset
+  // Kamera-Offset => Player in Bildschirmmitte
   const offsetX = canvas.width / 2 - me.x;
   const offsetY = canvas.height / 2 - me.y;
 
-  // Spielfeld
+  // Weißes Spielfeld
   ctx.save();
   ctx.fillStyle = '#fff';
   ctx.fillRect(offsetX, offsetY, 500, 500);
 
-  // Zeichne alle
+  // Alle Spieler
   for (const id in players) {
     const p = players[id];
     if (p.dead) continue;
@@ -162,7 +176,7 @@ function gameLoop() {
     const drawY = p.y + offsetY;
 
     if (p.isAi) {
-      // NPC => blauer Kreis
+      // NPC = blauer Kreis
       ctx.beginPath();
       ctx.arc(drawX, drawY, 30, 0, 2*Math.PI);
       ctx.fillStyle = '#4BBDFF';
@@ -171,7 +185,7 @@ function gameLoop() {
       // Player
       ctx.beginPath();
       ctx.arc(drawX, drawY, 10, 0, 2*Math.PI);
-      ctx.fillStyle = (id===myId)? 'red' : 'black';
+      ctx.fillStyle = (id === myId) ? 'red' : 'black';
       ctx.fill();
 
       ctx.fillStyle = 'black';
@@ -181,7 +195,7 @@ function gameLoop() {
   }
   ctx.restore();
 
-  // Score
+  // Score-Anzeige
   ctx.fillStyle = 'black';
   ctx.font = '20px sans-serif';
   ctx.fillText(`Score: ${me.score}`, 20, 30);
