@@ -5,19 +5,24 @@ const initGame = require('./game');
 
 const app = express();
 
-// <-- Hier die CSP per Header lockern (Debug-Zweck)
+// CSP-Middleware: Erlaubt (testweise) unsafe-eval
 app.use((req, res, next) => {
-  // Erlaubt Skripte von 'self' sowie 'unsafe-eval'
   res.setHeader("Content-Security-Policy", "script-src 'self' 'unsafe-eval';");
-  return next();
+  next();
 });
 
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Statische Dateien bereitstellen
 app.use(express.static('public'));
 
+// Dein Spiel initialisieren
 initGame(io);
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`[SERVER] listening on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`[SERVER] listening on port ${PORT}`);
+});
+
+
