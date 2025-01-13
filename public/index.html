@@ -1,81 +1,194 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8" />
-    <title>Cursor Demo</title>
+    <meta charset="utf-8">
+    <title>io-game Demo</title>
     <style>
-      body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden; /* Damit kein Scrollbalken erscheint */
-        background-color: white;
-        position: relative;
+      html, body {
+        margin: 0; 
+        padding: 0; 
+        overflow: hidden; 
+        background-color: #ccc; /* Grau rund ums Spielfeld */
         height: 100vh;
         width: 100vw;
       }
-      .cursor-dot {
-        position: absolute;
-        width: 12px;
-        height: 12px;
-        background-color: black;
-        border-radius: 50%;
-        pointer-events: none; /* Maus ignoriert den Kreis */
+      #gameCanvas {
+        display: block;
+        background: #ccc; /* Standard-Hintergrund, falls wir gar nichts zeichnen */
       }
     </style>
   </head>
   <body>
-    <div id="cursor-container"></div>
-
+    <canvas id="gameCanvas"></canvas>
+    
     <!-- Socket.io-Client -->
     <script src="/socket.io/socket.io.js"></script>
-
     <script>
-      // Verbindung zu unserem Socket.io-Server aufbauen
-      // (Läuft über die gleiche URL wie unsere Website, also kein URL-Parameter nötig)
-      const socket = io();
+      /******************************************
+       * Globale Variablen und Setup
+       ******************************************/
+      const socket = io();           // Socket.io-Verbindung
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
 
-      // Ein Objekt, das alle aktiven Cursor speichert, z. B.:
-      // { "socketID123": { x: 100, y: 200, element: <div> }, ... }
-      let cursors = {};
+      // Anpassen an Browserfenster
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
 
-      // Wenn die Maus bewegt wird, schicken wir Position zum Server
-      document.addEventListener("mousemove", (e) => {
-        socket.emit("cursor", { x: e.clientX, y: e.clientY });
+      // Speichert vom Server kommende Spielerdaten
+      // { socketId: { x, y, vx, vy, ... }, ... }
+      let players = {};
+
+      // Damit wir wissen, wer wir selbst sind
+      let myId = null;
+
+      // Eingabestatus (WASD)
+      let inputKeys = { up: false, down: false, left: false, right: false };
+
+      /******************************************
+       * Eingaben erfassen
+       ******************************************/
+      window.addEventListener('keydown', (e) => {
+        switch(e.key) {
+          case 'w':
+          case 'ArrowUp':
+            inputKeys.up = true;
+            break;
+          case 's':
+          case 'ArrowDown':
+            inputKeys.down = true;
+            break;
+          case 'a':
+          case 'ArrowLeft':
+            inputKeys.left = true;
+            break;
+          case 'd':
+          case 'ArrowRight':
+            inputKeys.right = true;
+            break;
+        }
+        sendKeys();
       });
 
-      // Server sendet "cursor": { id, x, y } -> Cursor-Position eines Spielers
-      socket.on("cursor", (data) => {
-        const { id, x, y } = data;
+      window.addEventListener('keyup', (e) => {
+        switch(e.key) {
+          case 'w':
+          case 'ArrowUp':
+            inputKeys.up = false;
+            break;
+          case 's':
+          case 'ArrowDown':
+            inputKeys.down = false;
+            break;
+          case 'a':
+          case 'ArrowLeft':
+            inputKeys.left = false;
+            break;
+          case 'd':
+          case 'ArrowRight':
+            inputKeys.right = false;
+            break;
+        }
+        sendKeys();
+      });
 
-        // Falls wir diesen Cursor noch nicht kennen, erzeugen wir ein neues DOM-Element
-        if (!cursors[id]) {
-          const dot = document.createElement("div");
-          dot.classList.add("cursor-dot");
-          document.body.appendChild(dot);
+      // An den Server schicken, welche Tasten gerade gedrückt sind
+      function sendKeys() {
+        socket.emit('moveKeys', inputKeys);
+      }
 
-          cursors[id] = {
-            x,
-            y,
-            element: dot,
-          };
+      /******************************************
+       * Socket.io-Ereignisse
+       ******************************************/
+      // Wenn wir uns verbinden, können wir uns unsere socket.id merken (optional)
+      socket.on('connect', () => {
+        myId = socket.id;
+      });
+
+      // Server sendet aktuelle Spiel-Zustände (Positionen aller Spieler)
+      socket.on('state', (serverPlayers) => {
+        players = serverPlayers;
+      });
+
+      /******************************************
+       * Zeichenfunktion
+       ******************************************/
+      function gameLoop() {
+        requestAnimationFrame(gameLoop);
+
+        // Hintergrund zeichnen (grau => wir machen es manuell unten, s. Felder)
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Falls wir noch nicht vom Server registriert wurden, skip
+        if (!myId || !players[myId]) {
+          // Kurzer Hinweis für den Nutzer
+          ctx.fillStyle = 'black';
+          ctx.font = '20px sans-serif';
+          ctx.fillText('Waiting for server data...', 50, 50);
+          return;
         }
 
-        // Position aktualisieren
-        cursors[id].x = x;
-        cursors[id].y = y;
-        cursors[id].element.style.left = x + "px";
-        cursors[id].element.style.top = y + "px";
-      });
+        // Eigener Spieler
+        const me = players[myId];
+        if (!me) return; // Sicherheitscheck
 
-      // Server sendet, dass ein Player disconnected ist -> Cursor entfernen
-      socket.on("playerDisconnected", (disconnectedId) => {
-        if (cursors[disconnectedId]) {
-          // Cursor-Element aus dem DOM entfernen
-          document.body.removeChild(cursors[disconnectedId].element);
-          // Eintrag aus unserem Objekt löschen
-          delete cursors[disconnectedId];
+        // Wir definieren, dass unser eigener Spieler immer im Bildschirmzentrum ist
+        // => Wir verschieben das Spielfeld entsprechend
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        // Offset, um Spielfeld zu verschieben
+        const offsetX = centerX - me.x;
+        const offsetY = centerY - me.y;
+
+        /***********************************************
+         * Feld zeichnen
+         * - Grauer Hintergrund für alles
+         * - Weißes Rechteck (SPIELFELD) in der Mitte
+         ***********************************************/
+        ctx.fillStyle = '#ccc';  // Grau
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Oberlinke Ecke des Spielfelds
+        const fieldLeft = -FIELD_WIDTH / 2;
+        const fieldTop  = -FIELD_HEIGHT / 2;
+
+        ctx.fillStyle = '#fff'; // Weiß für das eigentliche Spielfeld
+        ctx.fillRect(
+          fieldLeft + offsetX, 
+          fieldTop + offsetY, 
+          FIELD_WIDTH, 
+          FIELD_HEIGHT
+        );
+
+        /***********************************************
+         * Spieler zeichnen (Kreise)
+         ***********************************************/
+        for (const id in players) {
+          const p = players[id];
+
+          // Position des Spielers auf dem Canvas
+          const drawX = p.x + offsetX;
+          const drawY = p.y + offsetY;
+
+          // Kreis zeichnen
+          ctx.beginPath();
+          ctx.arc(drawX, drawY, 10, 0, 2 * Math.PI, false);
+          ctx.fillStyle = (id === myId) ? 'red' : 'black'; 
+          ctx.fill();
         }
-      });
+      }
+
+      // Werte wie im Server
+      const FIELD_WIDTH = 2000;
+      const FIELD_HEIGHT = 2000;
+
+      // Start der Schleife
+      requestAnimationFrame(gameLoop);
     </script>
   </body>
 </html>
