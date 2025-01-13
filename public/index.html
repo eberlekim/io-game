@@ -1,185 +1,31 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <title>io-game Demo</title>
-    <style>
-      html, body {
-        margin: 0; 
-        padding: 0; 
-        overflow: hidden; 
-        background-color: #ccc; /* Grau rund ums Spielfeld */
-        height: 100vh;
-        width: 100vw;
-      }
-      #gameCanvas {
-        display: block;
-      }
-    </style>
+    <meta charset="utf-8" />
+    <title>io-game</title>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <!-- Ein Startscreen -->
+    <div id="startScreen">
+      <h1>Willkommen!</h1>
+      <input id="nameInput" placeholder="Dein Name" />
+      <button id="startBtn">Start Game</button>
+    </div>
+
+    <!-- Canvas hier -->
     <canvas id="gameCanvas"></canvas>
-    
-    <!-- Socket.io-Client -->
+
+    <!-- (Optional) Deathscreen -->
+    <div id="deathScreen">
+      <h1>Du bist raus!</h1>
+      <p>Score: <span id="deathScore">0</span></p>
+      <button id="retryBtn">Nochmal versuchen</button>
+    </div>
+
+    <!-- Socket.io Client -->
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-      /******************************************
-       * Globale Variablen und Setup
-       ******************************************/
-      const socket = io();           
-      const canvas = document.getElementById('gameCanvas');
-      const ctx = canvas.getContext('2d');
-
-      // Damit wir Spielfeld und Spieler zeichnen können
-      const FIELD_WIDTH = 2000;
-      const FIELD_HEIGHT = 2000;
-      const PLAYER_RADIUS = 10;
-
-      // Alle Spieler-Daten, die vom Server kommen
-      // { socketId: { x, y, vx, vy, ... }, ... }
-      let players = {};
-
-      // Uns selbst identifizieren
-      let myId = null;
-
-      // Eingabestatus (WASD + SPACE)
-      let inputKeys = { up: false, down: false, left: false, right: false, boost: false };
-
-      // Canvas an Fenster anpassen
-      function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      }
-      window.addEventListener('resize', resizeCanvas);
-      resizeCanvas();
-
-      /******************************************
-       * Eingaben erfassen (W, A, S, D, SPACE)
-       ******************************************/
-      window.addEventListener('keydown', (e) => {
-        switch(e.key) {
-          case 'w':
-          case 'ArrowUp':
-            inputKeys.up = true;
-            break;
-          case 's':
-          case 'ArrowDown':
-            inputKeys.down = true;
-            break;
-          case 'a':
-          case 'ArrowLeft':
-            inputKeys.left = true;
-            break;
-          case 'd':
-          case 'ArrowRight':
-            inputKeys.right = true;
-            break;
-          case ' ':
-            inputKeys.boost = true;
-            break;
-        }
-        sendKeys();
-      });
-
-      window.addEventListener('keyup', (e) => {
-        switch(e.key) {
-          case 'w':
-          case 'ArrowUp':
-            inputKeys.up = false;
-            break;
-          case 's':
-          case 'ArrowDown':
-            inputKeys.down = false;
-            break;
-          case 'a':
-          case 'ArrowLeft':
-            inputKeys.left = false;
-            break;
-          case 'd':
-          case 'ArrowRight':
-            inputKeys.right = false;
-            break;
-          case ' ':
-            inputKeys.boost = false;
-            break;
-        }
-        sendKeys();
-      });
-
-      function sendKeys() {
-        // An den Server senden, welche Tasten gedrückt sind
-        socket.emit('moveKeys', inputKeys);
-      }
-
-      /******************************************
-       * Socket.io-Ereignisse
-       ******************************************/
-      socket.on('connect', () => {
-        myId = socket.id;
-      });
-
-      socket.on('state', (serverPlayers) => {
-        players = serverPlayers;
-      });
-
-      /******************************************
-       * Zeichenfunktion (gameLoop)
-       ******************************************/
-      function gameLoop() {
-        requestAnimationFrame(gameLoop);
-
-        // Alles löschen
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Haben wir schon eine Id?
-        if (!myId || !players[myId]) {
-          ctx.fillStyle = 'black';
-          ctx.font = '20px sans-serif';
-          ctx.fillText('Waiting for server data...', 50, 50);
-          return;
-        }
-
-        // Unser eigener Spieler
-        const me = players[myId];
-        if (!me) return;
-
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-
-        // Offset, damit unser Spieler in der Mitte bleibt
-        const offsetX = centerX - me.x;
-        const offsetY = centerY - me.y;
-
-        // Spielfeld zeichnen
-        ctx.fillStyle = '#ccc';  // grau drumherum
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Weißes Feld (2000x2000, zentriert bei 0,0)
-        const fieldLeft = -FIELD_WIDTH / 2;
-        const fieldTop  = -FIELD_HEIGHT / 2;
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(
-          fieldLeft + offsetX,
-          fieldTop + offsetY,
-          FIELD_WIDTH,
-          FIELD_HEIGHT
-        );
-
-        // Spieler zeichnen
-        for (const id in players) {
-          const p = players[id];
-          const drawX = p.x + offsetX;
-          const drawY = p.y + offsetY;
-
-          ctx.beginPath();
-          ctx.arc(drawX, drawY, PLAYER_RADIUS, 0, 2 * Math.PI, false);
-          // Ich = rot, andere = schwarz
-          ctx.fillStyle = (id === myId) ? 'red' : 'black';
-          ctx.fill();
-        }
-      }
-
-      requestAnimationFrame(gameLoop);
-    </script>
+    <!-- Unser Client-Code -->
+    <script src="main.js"></script>
   </body>
 </html>
