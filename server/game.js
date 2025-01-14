@@ -1,22 +1,21 @@
-const { Player } = require("./player");
-// Optional: NPCs
-// const { Npc } = require("./npc");
-const { updatePhysics } = require("./physics");
+const { Player } = require("./player.js");
+const { updatePhysics } = require("./physics.js"); // EXACT path with .js
+// ^ Das war vermutlich das Problem: die falsche Pfadangabe?
 
 const players = {};
 
 function startGameLoop(wss) {
   setInterval(() => {
-    // Dummy-Update: Bewege players und erhöhe Score
     Object.values(players).forEach((pl) => {
       if (!pl.dead) {
+        // Hier "updatePhysics" aufrufen
         updatePhysics(pl);
-        pl.score += 50; // Dummy-Score-Anstieg
-        // Optional: level = Math.floor(pl.score / 500);
+
+        // Ggf. Score hochzählen
+        pl.score += 50;
         pl.level = Math.floor(pl.score / 500);
       }
     });
-
     broadcastState(wss);
   }, 100);
 }
@@ -57,6 +56,7 @@ function broadcastState(wss) {
       client.send(data);
     }
   });
+  // Optional debug:
   // console.log("broadcastState: sending to", count, "WS clients...");
 }
 

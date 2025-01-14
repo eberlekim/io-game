@@ -11,7 +11,7 @@ const ctx          = gameCanvas.getContext("2d");
 
 let ws;
 let myId = null;
-let players = {}; // State from server
+let players = {};
 
 // UI setup
 startGameBtn.addEventListener("click", () => {
@@ -22,14 +22,12 @@ startGameBtn.addEventListener("click", () => {
 });
 
 respawnBtn.addEventListener("click", () => {
-  console.log("[CLIENT] Respawn clicked - just reload for now or handle differently");
+  console.log("[CLIENT] Respawn clicked");
   window.location.reload();
 });
 
 // WebSocket connect
 function connectWs() {
-  // Bei Render => wss://(deineApp).onrender.com
-  // Sonst => wss://window.location.host
   const wsUrl = `wss://${window.location.host}`;
   console.log("[CLIENT] connectWs ->", wsUrl);
 
@@ -37,7 +35,6 @@ function connectWs() {
 
   ws.onopen = () => {
     console.log("[CLIENT] WS connected -> sending spawnPlayer & playerName");
-    // Sende an Server, damit wir ggf. respawnen
     ws.send(JSON.stringify({ type: "spawnPlayer", name: "NoName" }));
   };
 
@@ -54,27 +51,27 @@ function connectWs() {
     if (msg.type === "state") {
       players = msg.players;
 
-      // Falls wir selber noch nicht angelegt sind, ignorieren wir diesen State
+      // Prüfen ob 'myId' im State ist
       if (!myId || !players[myId]) {
-        console.log("[CLIENT] No 'me' in players => ignoring state temporarily");
-        return; 
+        console.log("[CLIENT] No 'me' in players => showDeathScreen");
+        showDeathScreen("No entry for me in server state!");
+        return;
       }
 
-      // Prüfen, ob wir tot sind
+      // Check if dead
       if (players[myId].dead) {
         console.log("[CLIENT] me.dead === true => showDeathScreen");
         showDeathScreen("Server says I'm dead");
         return;
       }
 
-      // Alles okay, also updaten wir das Canvas
+      // OK => render
       renderGame(players);
     }
   };
 
   ws.onclose = () => {
     console.log("[CLIENT] WS onclose");
-    // Wir könnten hier showDeathScreen("WebSocket closed"); aufrufen, etc.
     showDeathScreen("WebSocket closed or lost");
   };
 
@@ -91,14 +88,11 @@ function showDeathScreen(reason) {
 }
 
 function renderGame(players) {
-  // Clear Canvas
   ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
 
-  // Draw each player
   Object.entries(players).forEach(([id, pl]) => {
     if (pl.dead) return;
 
-    // Einfacher Kreis
     ctx.beginPath();
     ctx.arc(pl.x, pl.y, 10, 0, Math.PI * 2);
     ctx.fillStyle = pl.isAi ? "orange" : "cyan";

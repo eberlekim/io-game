@@ -3,7 +3,6 @@ const path = require("path");
 const { WebSocketServer } = require("ws");
 const { v4: uuidv4 } = require("uuid");
 
-// Eigene Game-Module
 const { startGameLoop, players, spawnPlayer } = require("./game");
 
 const PORT = process.env.PORT || 3001;
@@ -15,19 +14,17 @@ const server = app.listen(PORT, () => {
   console.log(`[SERVER] listening on port ${PORT}`);
 });
 
-// WebSocket
+// IMPORTANT: we do NOT do "app.listen(...)" again, we pass 'server' to WebSocket
 const wss = new WebSocketServer({ server });
 console.log("[DEBUG] WebSocketServer init...");
 
 wss.on("connection", (ws) => {
   console.log("New client connected (raw ws).");
 
-  // Generate an ID
   const clientId = uuidv4().slice(0, 9);
   ws.clientId = clientId;
   console.log("Assigned clientId =", clientId);
 
-  // Send yourId
   ws.send(JSON.stringify({ type: "yourId", id: clientId }));
 
   // Spawn the player immediately
@@ -35,16 +32,14 @@ wss.on("connection", (ws) => {
     spawnPlayer(clientId, "NoName");
   }
 
-  // Listen for messages
   ws.on("message", (data) => {
     let msg;
     try {
       msg = JSON.parse(data);
     } catch (err) {
-      console.error("[SERVER] Invalid JSON message =>", err);
+      console.error("[SERVER] Invalid JSON =>", err);
       return;
     }
-
     if (msg.type === "spawnPlayer") {
       if (!players[clientId]) {
         spawnPlayer(clientId, msg.name || "NoName");
@@ -54,10 +49,8 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     console.log("WS closed for", clientId);
-    // Falls du willst, kannst du den player tot setzen oder entfernen
-    // players[clientId].dead = true;
+    // Optionally we might remove the player from players object
   });
 });
 
-// Start the game loop
 startGameLoop(wss);
