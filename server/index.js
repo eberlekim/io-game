@@ -5,23 +5,25 @@ const initGame = require('./game');
 
 const app = express();
 
-// OPTIONAL: testweise CSP (kannst du entfernen, wenn du willst)
+// OPTIONAL: Content-Security-Policy (kannst du entfernen, wenn es stört)
 app.use((req, res, next) => {
   res.setHeader("Content-Security-Policy", "script-src 'self' 'unsafe-eval';");
   next();
 });
 
-// Statische Dateien
+// Statische Dateien aus 'public'
 app.use(express.static('public'));
 
+// HTTP-Server
 const server = http.createServer(app);
+// WebSocket-Server
 const wss = new WebSocketServer({ server });
 
-// Hier initialisieren wir dein Spiel (NPCs, Physics, etc.)
+// Spiel initialisieren
 initGame(wss);
 
-// ACHTUNG: Nur process.env.PORT! (kein fallback)
-const PORT = process.env.PORT;
+// Port: lokal 3001, auf Render von process.env.PORT
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`[SERVER] listening on port ${PORT}`);
 });

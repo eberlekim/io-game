@@ -5,7 +5,7 @@ module.exports = {
   ACCELERATION: 0.2,
   FRICTION: 0.98,
   PLAYER_RADIUS: 10,
-  NPC_RADIUS: 30, // Für Sternen-Kollision in passender Größe
+  NPC_RADIUS: 30,
 
   BOOST_STRENGTH: 1.5,
   BOOST_COOLDOWN: 5000,

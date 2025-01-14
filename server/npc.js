@@ -5,13 +5,13 @@ class Npc extends Player {
   constructor(id) {
     super(id);
     this.isAi = true;
-    // Zufällige Start-Position
+    // Zufällige Startposition
     this.x = Math.random() * FIELD_WIDTH;
     this.y = Math.random() * FIELD_HEIGHT;
   }
 
   updateAi() {
-    // Minimal-KI: alle ~20 Ticks Richtungsimpuls
+    // Chance auf Richtungsimpuls
     if (Math.random() < 0.05) {
       const angle = Math.random() * 2 * Math.PI;
       const speed = 0.1;

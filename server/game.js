@@ -15,7 +15,7 @@ function getRequiredScoreForNextLevel(level) {
 }
 
 function initGame(wss) {
-  // Spawn ein paar NPCs
+  // Beispiel: 5 NPCs
   for (let i = 1; i <= 5; i++) {
     spawnNpc("AI_" + i);
   }
@@ -23,18 +23,17 @@ function initGame(wss) {
   wss.on('connection', (ws) => {
     console.log("New client connected (raw ws).");
 
-    // clientId erzeugen
+    // Eindeutige ID
     const clientId = generateId();
     ws.clientId = clientId;
     console.log("Assigned clientId =", clientId);
 
-    // Sende dem Client seine ID
+    // Schicke dem Client seine ID
     ws.send(JSON.stringify({
       type: 'yourId',
       id: clientId
     }));
 
-    // WebSocket-Events
     ws.on('message', (raw) => {
       let msg;
       try {
@@ -54,9 +53,9 @@ function initGame(wss) {
     });
   });
 
-  // Game-Loop
+  // Haupt-Game-Loop
   setInterval(() => {
-    // Score
+    // Score & Levelups
     for (const id in players) {
       const p = players[id];
       if (!p.dead && !p.isAi) {
@@ -71,10 +70,10 @@ function initGame(wss) {
       }
     }
 
-    // Physics
+    // Physik (Bewegung, Kollisionen)
     handlePhysics(players);
 
-    // Tote entfernen, NPC respawnen
+    // Tote entfernen (außer NPC) bzw. respawnen (NPC)
     for (const id in players) {
       const p = players[id];
       if (p.dead && !p.isAi) {
@@ -86,28 +85,30 @@ function initGame(wss) {
       }
     }
 
-    // State an Clients
+    // Broadcast state
     broadcastState(wss);
   }, 1000 / FPS);
 }
 
 function handleClientMessage(ws, msg) {
+  const clientId = ws.clientId;
+
   switch (msg.type) {
     case 'spawnPlayer':
-      if (!players[ws.clientId]) {
-        players[ws.clientId] = new Player(ws.clientId);
-        console.log(`[DEBUG] spawn player ${ws.clientId}`);
+      if (!players[clientId]) {
+        players[clientId] = new Player(clientId);
+        console.log(`[DEBUG] spawn player ${clientId}`);
       }
       break;
 
     case 'playerName':
-      if (players[ws.clientId]) {
-        players[ws.clientId].name = msg.name || 'Unknown';
+      if (players[clientId]) {
+        players[clientId].name = msg.name || 'Unknown';
       }
       break;
 
     case 'moveKeys': {
-      const p = players[ws.clientId];
+      const p = players[clientId];
       if (p && !p.dead) {
         p.up = msg.up;
         p.down = msg.down;
@@ -124,7 +125,6 @@ function handleClientMessage(ws, msg) {
 }
 
 function broadcastState(wss) {
-  // baue snapshot
   const snapshot = {};
   for (const id in players) {
     const p = players[id];
@@ -141,8 +141,10 @@ function broadcastState(wss) {
     };
   }
 
-  // in JSON umwandeln
-  const msg = JSON.stringify({ type: 'state', players: snapshot });
+  const msg = JSON.stringify({
+    type: 'state',
+    players: snapshot
+  });
 
   // Debug
   console.log(`broadcastState: sending to ${wss.clients.size} WS clients...`);

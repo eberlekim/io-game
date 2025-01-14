@@ -12,7 +12,6 @@ const {
 function handlePhysics(players) {
   const ids = Object.keys(players);
 
-  // Bewegung
   for (const id of ids) {
     const p = players[id];
     if (p.dead) continue;
@@ -26,6 +25,7 @@ function handlePhysics(players) {
       if (p.left)  p.vx -= ACCELERATION;
       if (p.right) p.vx += ACCELERATION;
 
+      // Boost
       const now = Date.now();
       if (p.boost) {
         if (now - p.lastBoostTime >= BOOST_COOLDOWN) {
@@ -37,19 +37,19 @@ function handlePhysics(players) {
       }
     }
 
-    // Reibung
+    // Reibung + Bewegung
     p.vx *= FRICTION;
     p.vy *= FRICTION;
     p.x += p.vx;
     p.y += p.vy;
 
-    // Out of bounds => dead
+    // Out of bounds => tot
     if (p.x < 0 || p.x > FIELD_WIDTH || p.y < 0 || p.y > FIELD_HEIGHT) {
       p.dead = true;
     }
   }
 
-  // Kollision
+  // Kollisionen
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
       const p1 = players[ids[i]];
@@ -82,11 +82,10 @@ function resolveCollision(p1, p2) {
     p2.x += nx * half;
     p2.y += ny * half;
 
-    // Impulse
+    // Impuls
     const tx1 = p1.vx * nx + p1.vy * ny;
     const tx2 = p2.vx * nx + p2.vy * ny;
 
-    // NPC "leichter", Player "schwerer"
     const f1 = p1.isAi ? 0.5 : 2.0;
     const f2 = p2.isAi ? 0.5 : 2.0;
 
