@@ -1,69 +1,52 @@
-// server/game.js
-const { handlePhysics } = require("./physics.js");
+const { NPC } = require('./npc');
+const { Player } = require('./player');
+const { handlePhysics } = require('./physics');
 
 const players = {};
 
-function startGameLoop(wss) {
+function startGameLoop() {
   setInterval(() => {
-    // Hier rufen wir handlePhysics(players) auf, statt updatePhysics()
+    // Physik
     handlePhysics(players);
 
-    // Danach kannst du Scores oder Levels hochzählen
-    // z.B.:
-    Object.values(players).forEach((pl) => {
-      if (!pl.dead) {
-        pl.score += 10;
-        pl.level = Math.floor(pl.score / 500);
+    // Score & Level
+    for (let id in players) {
+      const p = players[id];
+      if (!p.dead) {
+        p.score += 50; // test
+        if (p.score % 500 === 0) {
+          p.level++;
+        }
       }
-    });
-
-    broadcastState(wss);
-  }, 100);
+    }
+  }, 1000 / 60); // jetzt 60 FPS
 }
 
-
-function spawnPlayer(clientId, name = "Unbekannt") {
-  if (!players[clientId]) {
-    players[clientId] = new Player(clientId, name);
-    console.log("[DEBUG] spawn player", clientId);
+// Erstelle ein paar NPC
+function spawnNPCs() {
+  for (let i = 0; i < 5; i++) {
+    const npcId = "NPC_" + i;
+    players[npcId] = new NPC(npcId);
   }
 }
 
-function getState() {
-  const state = { players: {} };
-  Object.entries(players).forEach(([id, pl]) => {
-    state.players[id] = {
-      x: pl.x,
-      y: pl.y,
-      vx: pl.vx,
-      vy: pl.vy,
-      dead: pl.dead,
-      isAi: pl.isAi,
-      name: pl.name,
-      score: pl.score,
-      level: pl.level
-    };
-  });
-  return state;
+function spawnPlayer(clientId, name) {
+  players[clientId] = new Player(clientId, name);
 }
 
-function broadcastState(wss) {
-  const state = getState();
-  const data = JSON.stringify({ type: "state", players: state.players });
+function removePlayer(clientId) {
+  delete players[clientId];
+}
 
-  let count = 0;
-  wss.clients.forEach((client) => {
-    if (client.readyState === 1) {
-      count++;
-      client.send(data);
-    }
-  });
-  // Optional debug:
-  // console.log("broadcastState: sending to", count, "WS clients...");
+function getGameState() {
+  return { players };
 }
 
 module.exports = {
-  players,
+  startGameLoop,
+  spawnNPCs,
   spawnPlayer,
-  startGameLoop
+  removePlayer,
+  getGameState,
+  players
 };

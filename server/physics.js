@@ -1,4 +1,3 @@
-// server/physics.js
 const {
   PLAYER_RADIUS,
   NPC_RADIUS,
@@ -8,51 +7,39 @@ const {
   BOOST_COOLDOWN,
   FIELD_WIDTH,
   FIELD_HEIGHT
-} = require('./config'); // Stelle sicher, dass config.js existiert & exportiert!
+} = require('./config');
 
 function handlePhysics(players) {
   const ids = Object.keys(players);
 
-  // Bewegung pro Spieler
-  for (const id of ids) {
+  // Move & Damp
+  for (let id of ids) {
     const p = players[id];
     if (p.dead) continue;
 
-    // AI-Logik
-    if (p.isAi) {
-      if (p.updateAi) p.updateAi();
+    if (p.isAi && typeof p.updateAi === "function") {
+      p.updateAi();
     } else {
-      // Steuerung
-      if (p.up)    p.vy -= ACCELERATION;
-      if (p.down)  p.vy += ACCELERATION;
-      if (p.left)  p.vx -= ACCELERATION;
+      // Falls Tasten
+      if (p.up) p.vy -= ACCELERATION;
+      if (p.down) p.vy += ACCELERATION;
+      if (p.left) p.vx -= ACCELERATION;
       if (p.right) p.vx += ACCELERATION;
-
-      // Boost
-      const now = Date.now();
-      if (p.boost) {
-        if (now - p.lastBoostTime >= BOOST_COOLDOWN) {
-          p.vx *= BOOST_STRENGTH;
-          p.vy *= BOOST_STRENGTH;
-          p.lastBoostTime = now;
-        }
-        p.boost = false;
-      }
     }
 
-    // Reibung & Bewegung
+    // FRICTION
     p.vx *= FRICTION;
     p.vy *= FRICTION;
     p.x += p.vx;
     p.y += p.vy;
 
-    // Out of bounds -> tot
+    // raus -> tot
     if (p.x < 0 || p.x > FIELD_WIDTH || p.y < 0 || p.y > FIELD_HEIGHT) {
       p.dead = true;
     }
   }
 
-  // Kollisionen
+  // collisions
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
       const p1 = players[ids[i]];
@@ -74,23 +61,22 @@ function resolveCollision(p1, p2) {
   const minDist = r1 + r2;
 
   if (dist < minDist) {
-    const overlap = minDist - dist;
+    const overlap = (minDist - dist);
     const half = overlap / 2;
     const nx = dx / dist;
     const ny = dy / dist;
 
-    // Auseinander schieben
     p1.x -= nx * half;
     p1.y -= ny * half;
     p2.x += nx * half;
     p2.y += ny * half;
 
-    // Impuls
+    // simpler Impuls
     const tx1 = p1.vx * nx + p1.vy * ny;
     const tx2 = p2.vx * nx + p2.vy * ny;
 
-    const f1 = p1.isAi ? 0.5 : 2.0; // AI -> leichter
-    const f2 = p2.isAi ? 0.5 : 2.0;
+    const f1 = p1.isAi ? 0.5 : 1.5;
+    const f2 = p2.isAi ? 0.5 : 1.5;
 
     p1.vx += (tx2 - tx1) * nx * f1;
     p1.vy += (tx2 - tx1) * ny * f1;

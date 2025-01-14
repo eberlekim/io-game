@@ -1,102 +1,98 @@
 console.log("[CLIENT] main.js loaded!");
 
-const startScreen = document.getElementById("startScreen");
-const gameCanvas  = document.getElementById("gameCanvas");
-const deathScreen = document.getElementById("deathScreen");
-const deathReason = document.getElementById("deathReason");
-
-const startGameBtn = document.getElementById("startGameBtn");
-const respawnBtn   = document.getElementById("respawnBtn");
-const ctx          = gameCanvas.getContext("2d");
+// Canvas
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = 800;
+canvas.height = 600;
 
 let ws;
 let myId = null;
 let players = {};
 
-// UI setup
-startGameBtn.addEventListener("click", () => {
-  console.log("[CLIENT] Hiding startScreen, showing canvas");
-  startScreen.style.display = "none";
-  gameCanvas.style.display  = "block";
-  connectWs();
-});
+// Wir verwenden als Name "unbenannt"
+const playerName = "unbenannt";
 
-respawnBtn.addEventListener("click", () => {
-  console.log("[CLIENT] Respawn clicked");
-  window.location.reload();
-});
-
-// WebSocket connect
+// Verbinde
 function connectWs() {
-  const wsUrl = `wss://${window.location.host}`;
+  let wsUrl;
+  if (window.location.hostname === "localhost") {
+    wsUrl = "ws://localhost:3001";
+  } else {
+    wsUrl = window.location.origin.replace(/^http/, "ws");
+  }
   console.log("[CLIENT] connectWs ->", wsUrl);
 
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    console.log("[CLIENT] WS connected -> sending spawnPlayer & playerName");
-    ws.send(JSON.stringify({ type: "spawnPlayer", name: "NoName" }));
+    console.log("[CLIENT] WS connected, sending spawnPlayer");
+    ws.send(JSON.stringify({ type: "spawnPlayer", name: playerName }));
   };
 
-  ws.onmessage = (message) => {
-    const msg = JSON.parse(message.data);
-    console.log("[CLIENT] WS onmessage RAW =>", msg);
+  ws.onmessage = (evt) => {
+    let data = JSON.parse(evt.data);
 
-    if (msg.type === "yourId") {
-      myId = msg.id;
+    if (data.type === "yourId") {
+      myId = data.id;
       console.log("Got myId:", myId);
-      return;
-    }
-
-    if (msg.type === "state") {
-      players = msg.players;
-
-      // Prüfen ob 'myId' im State ist
-      if (!myId || !players[myId]) {
-        console.log("[CLIENT] No 'me' in players => showDeathScreen");
-        showDeathScreen("No entry for me in server state!");
-        return;
-      }
-
-      // Check if dead
-      if (players[myId].dead) {
-        console.log("[CLIENT] me.dead === true => showDeathScreen");
-        showDeathScreen("Server says I'm dead");
-        return;
-      }
-
-      // OK => render
-      renderGame(players);
+    } 
+    else if (data.type === "state") {
+      players = data.players;
+      renderGame();
     }
   };
 
   ws.onclose = () => {
     console.log("[CLIENT] WS onclose");
-    showDeathScreen("WebSocket closed or lost");
-  };
-
-  ws.onerror = (err) => {
-    console.error("[CLIENT] WS error", err);
   };
 }
 
-function showDeathScreen(reason) {
-  console.log("[CLIENT] showDeathScreen called. reason =", reason);
-  deathReason.textContent = reason;
-  deathScreen.style.display = "flex";
-  gameCanvas.style.display  = "none";
-}
+function renderGame() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-function renderGame(players) {
-  ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  for (let id in players) {
+    const p = players[id];
+    if (p.dead) continue;
 
-  Object.entries(players).forEach(([id, pl]) => {
-    if (pl.dead) return;
-
+    // Kreise
     ctx.beginPath();
-    ctx.arc(pl.x, pl.y, 10, 0, Math.PI * 2);
-    ctx.fillStyle = pl.isAi ? "orange" : "cyan";
-    if (id === myId) ctx.fillStyle = "lime";
+    if (p.isAi) {
+      ctx.fillStyle = "orange";
+      ctx.arc(p.x, p.y, 15, 0, 2 * Math.PI);
+    } else {
+      ctx.fillStyle = (id === myId) ? "lime" : "cyan";
+      ctx.arc(p.x, p.y, 15, 0, 2 * Math.PI);
+    }
     ctx.fill();
-  });
+
+    // Name / Score
+    ctx.fillStyle = "#fff";
+    ctx.font = "12px sans-serif";
+    ctx.fillText(p.name + " (lvl " + p.level + ")", p.x + 20, p.y);
+  }
 }
+
+// Sende Input
+function sendInput(data) {
+  if (!ws) return;
+  ws.send(JSON.stringify({ type: "input", ...data }));
+}
+
+// Key-Events
+document.addEventListener("keydown", (e) => {
+  if (e.key === "w") sendInput({ up: true });
+  if (e.key === "a") sendInput({ left: true });
+  if (e.key === "s") sendInput({ down: true });
+  if (e.key === "d") sendInput({ right: true });
+});
+
+document.addEventListener("keyup", (e) => {
+  if (e.key === "w") sendInput({ up: false });
+  if (e.key === "a") sendInput({ left: false });
+  if (e.key === "s") sendInput({ down: false });
+  if (e.key === "d") sendInput({ right: false });
+});
+
+// Starte
+connectWs();

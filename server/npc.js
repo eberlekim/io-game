@@ -1,24 +1,24 @@
-const Player = require('./player');
-const { FIELD_WIDTH, FIELD_HEIGHT } = require('./config');
-
-class Npc extends Player {
+class NPC {
   constructor(id) {
-    super(id);
+    this.id = id;
+    this.name = "NPC";
     this.isAi = true;
-    // Zufällige Startposition
-    this.x = Math.random() * FIELD_WIDTH;
-    this.y = Math.random() * FIELD_HEIGHT;
+    this.x = Math.random() * 600 + 100;
+    this.y = Math.random() * 400 + 100;
+    this.vx = (Math.random() - 0.5) * 2;
+    this.vy = (Math.random() - 0.5) * 2;
+    this.dead = false;
+    this.score = 0;
+    this.level = 0;
   }
 
   updateAi() {
-    // Chance auf Richtungsimpuls
-    if (Math.random() < 0.05) {
-      const angle = Math.random() * 2 * Math.PI;
-      const speed = 0.1;
-      this.vx += Math.cos(angle) * speed;
-      this.vy += Math.sin(angle) * speed;
+    // Einfache KI
+    if (Math.random() < 0.01) {
+      this.vx += (Math.random() - 0.5) * 0.5;
+      this.vy += (Math.random() - 0.5) * 0.5;
     }
   }
 }
 
-module.exports = Npc;
+module.exports = { NPC };
