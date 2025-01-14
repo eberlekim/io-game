@@ -1,34 +1,21 @@
-body, html {
+body {
   margin: 0;
-  padding: 0;
   font-family: sans-serif;
-  background-color: #ccc;
+  background-color: #222;
+  color: #eee;
+}
+
+#startScreen, #deathScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
 }
 
 #gameCanvas {
-  display: none;
-  background: #eee;
-}
-
-#startScreen,
-#deathScreen {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #eee;
-  border: 2px solid #333;
-  padding: 20px;
-  text-align: center;
-}
-
-#deathScreen {
-  display: none;
-}
-
-input, button {
-  margin: 10px auto;
-  font-size: 16px;
-  padding: 6px 12px;
+  background-color: #333;
   display: block;
+  margin: 0 auto;
+  border: 2px solid #999;
 }

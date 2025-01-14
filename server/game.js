@@ -1,170 +1,68 @@
-const Player = require('./player');
-const Npc = require('./npc');
-const { handlePhysics } = require('./physics');
-const {
-  FPS,
-  SCORE_PER_SECOND,
-  MAX_LEVEL
-} = require('./config');
+const { Player } = require("./player");
+const { Npc } = require("./npc");
+const { updatePhysics } = require("./physics");
 
 const players = {};
+const NPCs = {}; // optional
 
-function getRequiredScoreForNextLevel(level) {
-  const base = 500, factor = 1.3;
-  return Math.floor(base * Math.pow(factor, level));
-}
-
-function initGame(wss) {
-  // Beispiel: 5 NPCs
-  for (let i = 1; i <= 5; i++) {
-    spawnNpc("AI_" + i);
-  }
-
-  wss.on('connection', (ws) => {
-    console.log("New client connected (raw ws).");
-
-    // Eindeutige ID
-    const clientId = generateId();
-    ws.clientId = clientId;
-    console.log("Assigned clientId =", clientId);
-
-    // Schicke dem Client seine ID
-    ws.send(JSON.stringify({
-      type: 'yourId',
-      id: clientId
-    }));
-
-    ws.on('message', (raw) => {
-      let msg;
-      try {
-        msg = JSON.parse(raw);
-      } catch (e) {
-        console.log("Invalid JSON from client:", raw);
-        return;
-      }
-      handleClientMessage(ws, msg);
-    });
-
-    ws.on('close', (code, reason) => {
-      console.log(`WS closed: clientId=${clientId}, code=${code}, reason=${reason}`);
-      if (players[clientId]) {
-        delete players[clientId];
-      }
-    });
-  });
-
-  // Haupt-Game-Loop
+function startGameLoop(wss) {
   setInterval(() => {
-    // Score & Levelups
-    for (const id in players) {
-      const p = players[id];
-      if (!p.dead && !p.isAi) {
-        p.score += SCORE_PER_SECOND;
-        if (p.level < MAX_LEVEL) {
-          const r = getRequiredScoreForNextLevel(p.level);
-          if (p.score >= r) {
-            p.level++;
-            console.log(`Level up: ${id} => ${p.level}`);
-          }
-        }
+    // Update
+    Object.values(players).forEach((pl) => {
+      if (!pl.dead) {
+        updatePhysics(pl);
+        pl.score += 50; // Dummy
       }
-    }
+    });
+    // Optional: NPCs updaten ...
 
-    // Physik (Bewegung, Kollisionen)
-    handlePhysics(players);
-
-    // Tote entfernen (außer NPC) bzw. respawnen (NPC)
-    for (const id in players) {
-      const p = players[id];
-      if (p.dead && !p.isAi) {
-        console.log(`[DEBUG] removing dead player ${id}`);
-        delete players[id];
-      } else if (p.dead && p.isAi) {
-        console.log(`[DEBUG] NPC dead => respawn`);
-        spawnNpc(id);
-      }
-    }
-
-    // Broadcast state
     broadcastState(wss);
-  }, 1000 / FPS);
+  }, 100);
 }
 
-function handleClientMessage(ws, msg) {
-  const clientId = ws.clientId;
-
-  switch (msg.type) {
-    case 'spawnPlayer':
-      if (!players[clientId]) {
-        players[clientId] = new Player(clientId);
-        console.log(`[DEBUG] spawn player ${clientId}`);
-      }
-      break;
-
-    case 'playerName':
-      if (players[clientId]) {
-        players[clientId].name = msg.name || 'Unknown';
-      }
-      break;
-
-    case 'moveKeys': {
-      const p = players[clientId];
-      if (p && !p.dead) {
-        p.up = msg.up;
-        p.down = msg.down;
-        p.left = msg.left;
-        p.right = msg.right;
-        p.boost = msg.boost;
-      }
-      break;
-    }
-
-    default:
-      console.log("Unknown message type:", msg.type);
+function spawnPlayer(clientId, name = "Unbekannt") {
+  if (!players[clientId]) {
+    players[clientId] = new Player(clientId, name);
+    console.log("[DEBUG] spawn player", clientId);
   }
+}
+
+function getState() {
+  const state = { players: {} };
+  Object.entries(players).forEach(([id, pl]) => {
+    state.players[id] = {
+      id: pl.id,
+      x: pl.x,
+      y: pl.y,
+      vx: pl.vx,
+      vy: pl.vy,
+      dead: pl.dead,
+      isAi: pl.isAi,
+      name: pl.name,
+      score: pl.score,
+      level: pl.level
+    };
+  });
+  return state;
 }
 
 function broadcastState(wss) {
-  const snapshot = {};
-  for (const id in players) {
-    const p = players[id];
-    snapshot[id] = {
-      x: p.x,
-      y: p.y,
-      vx: p.vx,
-      vy: p.vy,
-      dead: p.dead,
-      isAi: p.isAi,
-      name: p.name,
-      score: p.score,
-      level: p.level
-    };
-  }
+  const state = getState();
+  const data = JSON.stringify({ type: "state", players: state.players });
 
-  const msg = JSON.stringify({
-    type: 'state',
-    players: snapshot
-  });
-
-  // Debug
-  console.log(`broadcastState: sending to ${wss.clients.size} WS clients...`);
-
+  let count = 0;
   wss.clients.forEach((client) => {
     if (client.readyState === 1) {
-      console.log(" -> sending state to", client.clientId);
-      client.send(msg);
+      count++;
+      client.send(data);
     }
   });
+  // console.log(`broadcastState: sending to ${count} WS clients...`);
 }
 
-function spawnNpc(nid) {
-  const npc = new Npc(nid);
-  players[nid] = npc;
-  console.log(`[DEBUG] spawn NPC ${nid}`);
-}
-
-function generateId() {
-  return Math.random().toString(36).substr(2, 9);
-}
-
-module.exports = initGame;
+module.exports = {
+  players,
+  startGameLoop,
+  getState,
+  spawnPlayer
+};
