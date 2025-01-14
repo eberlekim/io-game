@@ -10,54 +10,53 @@ const {
 const players = {};
 
 function getRequiredScoreForNextLevel(level) {
-  const base = 500;
-  const factor = 1.3;
+  const base = 500, factor = 1.3;
   return Math.floor(base * Math.pow(factor, level));
 }
 
 function initGame(wss) {
-  // Beispiel: 5 NPCs
+  // Spawn ein paar NPCs
   for (let i = 1; i <= 5; i++) {
     spawnNpc("AI_" + i);
   }
 
   wss.on('connection', (ws) => {
-    console.log("New client connected");
+    console.log("New client connected (raw ws).");
 
-    // 1) ID erzeugen
+    // clientId erzeugen
     const clientId = generateId();
     ws.clientId = clientId;
+    console.log("Assigned clientId =", clientId);
 
-    // 2) Client seine ID mitteilen
+    // Sende dem Client seine ID
     ws.send(JSON.stringify({
       type: 'yourId',
       id: clientId
     }));
 
-    // Daten empfangen
+    // WebSocket-Events
     ws.on('message', (raw) => {
       let msg;
       try {
         msg = JSON.parse(raw);
       } catch (e) {
-        console.log("Invalid JSON:", raw);
+        console.log("Invalid JSON from client:", raw);
         return;
       }
       handleClientMessage(ws, msg);
     });
 
-    // Verbindung abgebrochen
-    ws.on('close', () => {
-      console.log("disconnect", ws.clientId);
-      if (players[ws.clientId]) {
-        delete players[ws.clientId];
+    ws.on('close', (code, reason) => {
+      console.log(`WS closed: clientId=${clientId}, code=${code}, reason=${reason}`);
+      if (players[clientId]) {
+        delete players[clientId];
       }
     });
   });
 
   // Game-Loop
   setInterval(() => {
-    // Score & Level
+    // Score
     for (const id in players) {
       const p = players[id];
       if (!p.dead && !p.isAi) {
@@ -72,9 +71,10 @@ function initGame(wss) {
       }
     }
 
+    // Physics
     handlePhysics(players);
 
-    // Tote entfernen bzw. NPC respawnen
+    // Tote entfernen, NPC respawnen
     for (const id in players) {
       const p = players[id];
       if (p.dead && !p.isAi) {
@@ -86,13 +86,9 @@ function initGame(wss) {
       }
     }
 
-    // State an alle Clients
+    // State an Clients
     broadcastState(wss);
   }, 1000 / FPS);
-}
-
-function generateId() {
-  return Math.random().toString(36).substr(2, 9);
 }
 
 function handleClientMessage(ws, msg) {
@@ -110,7 +106,7 @@ function handleClientMessage(ws, msg) {
       }
       break;
 
-    case 'moveKeys':
+    case 'moveKeys': {
       const p = players[ws.clientId];
       if (p && !p.dead) {
         p.up = msg.up;
@@ -120,19 +116,23 @@ function handleClientMessage(ws, msg) {
         p.boost = msg.boost;
       }
       break;
+    }
 
     default:
-      console.log("Unknown msg.type:", msg.type);
+      console.log("Unknown message type:", msg.type);
   }
 }
 
 function broadcastState(wss) {
+  // baue snapshot
   const snapshot = {};
   for (const id in players) {
     const p = players[id];
     snapshot[id] = {
-      x: p.x, y: p.y,
-      vx: p.vx, vy: p.vy,
+      x: p.x,
+      y: p.y,
+      vx: p.vx,
+      vy: p.vy,
       dead: p.dead,
       isAi: p.isAi,
       name: p.name,
@@ -140,13 +140,16 @@ function broadcastState(wss) {
       level: p.level
     };
   }
-  const msg = JSON.stringify({
-    type: 'state',
-    players: snapshot
-  });
+
+  // in JSON umwandeln
+  const msg = JSON.stringify({ type: 'state', players: snapshot });
+
+  // Debug
+  console.log(`broadcastState: sending to ${wss.clients.size} WS clients...`);
 
   wss.clients.forEach((client) => {
     if (client.readyState === 1) {
+      console.log(" -> sending state to", client.clientId);
       client.send(msg);
     }
   });
@@ -156,6 +159,10 @@ function spawnNpc(nid) {
   const npc = new Npc(nid);
   players[nid] = npc;
   console.log(`[DEBUG] spawn NPC ${nid}`);
+}
+
+function generateId() {
+  return Math.random().toString(36).substr(2, 9);
 }
 
 module.exports = initGame;

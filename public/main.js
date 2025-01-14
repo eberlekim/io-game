@@ -19,6 +19,7 @@ let myId = null;
 let players = {};
 let isAlive = false;
 
+// Start-Button
 startBtn.addEventListener('click', () => {
   const name = nameInput.value.trim() || 'NoName';
   connectWs(name);
@@ -33,7 +34,7 @@ retryBtn.addEventListener('click', () => {
   location.reload();
 });
 
-// Eingaben
+// Steuerung
 let inputKeys = { up:false, down:false, left:false, right:false, boost:false };
 
 window.addEventListener('keydown', e => {
@@ -67,40 +68,37 @@ window.addEventListener('keyup', e => {
 
 /**
  * Stellt eine WebSocket-Verbindung her.
- * - Falls die Seite via HTTPS läuft, erzwingen wir "wss://"
- * - Lokal (HTTP) => "ws://"
+ * - Render => HTTPS => wss://
+ * - Lokal => ws://
  */
 function connectWs(playerName) {
   let portPart = location.port ? (':' + location.port) : '';
   let hostPart = location.hostname;
-
-  // Harter Umschalter: Wenn HTTPS => wss, sonst ws
+  
   let protocolPart = 'ws:';
   if (location.protocol === 'https:') {
     protocolPart = 'wss:';
-    // Tipp: Wenn Render auf Port 443 läuft, ist location.port evtl. leer => wss://domain
-    // => ok, das ist normal
   }
 
-  // Zum Debuggen in der Browser-Konsole nachvollziehen
+  // Debug
   console.log("connectWs ->", protocolPart, "//", hostPart, portPart);
-
   const wsUrl = `${protocolPart}//${hostPart}${portPart}`;
   console.log("Final WebSocket URL:", wsUrl);
 
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    console.log("WS connected");
+    console.log("[CLIENT] WS connected -> sending spawnPlayer & playerName");
     ws.send(JSON.stringify({ type: 'spawnPlayer' }));
     ws.send(JSON.stringify({ type: 'playerName', name: playerName }));
   };
 
   ws.onmessage = (evt) => {
+    console.log("WS onmessage raw =>", evt.data);
     let msg;
     try {
       msg = JSON.parse(evt.data);
-    } catch (e) {
+    } catch(e) {
       console.error("Invalid JSON from server:", evt.data);
       return;
     }
@@ -108,9 +106,10 @@ function connectWs(playerName) {
     if (msg.type === 'yourId') {
       myId = msg.id;
       console.log("Got myId:", myId);
-
-    } else if (msg.type === 'state') {
+    }
+    else if (msg.type === 'state') {
       players = msg.players;
+      // Check if wir tot
       if (myId) {
         const me = players[myId];
         if (!me || me.dead) {
@@ -118,14 +117,14 @@ function connectWs(playerName) {
           isAlive = false;
         }
       }
-
-    } else {
-      console.log("Unknown message type:", msg.type);
+    }
+    else {
+      console.log("Unknown msg.type:", msg.type);
     }
   };
 
-  ws.onclose = () => {
-    console.log("WS disconnected");
+  ws.onclose = (evt) => {
+    console.log("[CLIENT] WS disconnected code=", evt.code, "reason=", evt.reason);
     if (isAlive) showDeathScreen();
   };
 }
@@ -168,7 +167,7 @@ function gameLoop() {
   ctx.fillStyle = '#fff';
   ctx.fillRect(offsetX, offsetY, 500, 500);
 
-  // Alle Spieler
+  // Zeichne alle
   for (const id in players) {
     const p = players[id];
     if (p.dead) continue;
@@ -183,7 +182,7 @@ function gameLoop() {
       ctx.fillStyle = '#4BBDFF';
       ctx.fill();
     } else {
-      // Spieler
+      // Player
       ctx.beginPath();
       ctx.arc(drawX, drawY, 10, 0, 2*Math.PI);
       ctx.fillStyle = (id === myId) ? 'red' : 'black';
