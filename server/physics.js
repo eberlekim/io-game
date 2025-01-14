@@ -1,3 +1,4 @@
+// server/physics.js
 const {
   PLAYER_RADIUS,
   NPC_RADIUS,
@@ -7,15 +8,17 @@ const {
   BOOST_COOLDOWN,
   FIELD_WIDTH,
   FIELD_HEIGHT
-} = require('./config');
+} = require('./config'); // Stelle sicher, dass config.js existiert & exportiert!
 
 function handlePhysics(players) {
   const ids = Object.keys(players);
 
+  // Bewegung pro Spieler
   for (const id of ids) {
     const p = players[id];
     if (p.dead) continue;
 
+    // AI-Logik
     if (p.isAi) {
       if (p.updateAi) p.updateAi();
     } else {
@@ -37,13 +40,13 @@ function handlePhysics(players) {
       }
     }
 
-    // Reibung + Bewegung
+    // Reibung & Bewegung
     p.vx *= FRICTION;
     p.vy *= FRICTION;
     p.x += p.vx;
     p.y += p.vy;
 
-    // Out of bounds => tot
+    // Out of bounds -> tot
     if (p.x < 0 || p.x > FIELD_WIDTH || p.y < 0 || p.y > FIELD_HEIGHT) {
       p.dead = true;
     }
@@ -86,7 +89,7 @@ function resolveCollision(p1, p2) {
     const tx1 = p1.vx * nx + p1.vy * ny;
     const tx2 = p2.vx * nx + p2.vy * ny;
 
-    const f1 = p1.isAi ? 0.5 : 2.0;
+    const f1 = p1.isAi ? 0.5 : 2.0; // AI -> leichter
     const f2 = p2.isAi ? 0.5 : 2.0;
 
     p1.vx += (tx2 - tx1) * nx * f1;

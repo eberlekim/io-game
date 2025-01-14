@@ -1,24 +1,26 @@
-const { Player } = require("./player.js");
-const { updatePhysics } = require("./physics.js"); // EXACT path with .js
-// ^ Das war vermutlich das Problem: die falsche Pfadangabe?
+// server/game.js
+const { handlePhysics } = require("./physics.js");
 
 const players = {};
 
 function startGameLoop(wss) {
   setInterval(() => {
+    // Hier rufen wir handlePhysics(players) auf, statt updatePhysics()
+    handlePhysics(players);
+
+    // Danach kannst du Scores oder Levels hochzählen
+    // z.B.:
     Object.values(players).forEach((pl) => {
       if (!pl.dead) {
-        // Hier "updatePhysics" aufrufen
-        updatePhysics(pl);
-
-        // Ggf. Score hochzählen
-        pl.score += 50;
+        pl.score += 10;
         pl.level = Math.floor(pl.score / 500);
       }
     });
+
     broadcastState(wss);
   }, 100);
 }
+
 
 function spawnPlayer(clientId, name = "Unbekannt") {
   if (!players[clientId]) {
