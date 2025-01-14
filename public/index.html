@@ -2,23 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>IO-Game</title>
+  <title>IO Game</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
   <div id="startScreen">
-    <h1>Willkommen</h1>
+    <h1>Willkommen zu IO Game!</h1>
     <button id="startGameBtn">Spiel starten</button>
   </div>
 
-  <canvas id="gameCanvas" width="600" height="400" style="display: none;"></canvas>
-
   <div id="deathScreen" style="display: none;">
-    <h2>Du bist tot!</h2>
+    <h1>Du bist tot!</h1>
     <p id="deathReason"></p>
     <button id="respawnBtn">Respawn</button>
   </div>
+
+  <canvas id="gameCanvas" width="600" height="400" style="display: none;"></canvas>
 
   <script src="main.js"></script>
 </body>

@@ -1,16 +1,14 @@
 const express = require("express");
 const path = require("path");
 const { WebSocketServer } = require("ws");
-const { v4: uuidv4 } = require("uuid"); // optional, oder nutz was eigenes
+const { v4: uuidv4 } = require("uuid");
 
-// Eigene Module:
-const { startGameLoop, getState, players, spawnPlayer } = require("./game");
+// Eigene Game-Module
+const { startGameLoop, players, spawnPlayer } = require("./game");
 
 const PORT = process.env.PORT || 3001;
-
 const app = express();
 
-// statische Files aus dem public-Ordner
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 const server = app.listen(PORT, () => {
@@ -24,31 +22,30 @@ console.log("[DEBUG] WebSocketServer init...");
 wss.on("connection", (ws) => {
   console.log("New client connected (raw ws).");
 
-  // Erzeuge eine clientId
+  // Generate an ID
   const clientId = uuidv4().slice(0, 9);
   ws.clientId = clientId;
   console.log("Assigned clientId =", clientId);
 
-  // Sende dem Client sein clientId
+  // Send yourId
   ws.send(JSON.stringify({ type: "yourId", id: clientId }));
 
-  // Sofort im players-Objekt anlegen
+  // Spawn the player immediately
   if (!players[clientId]) {
     spawnPlayer(clientId, "NoName");
   }
 
-  // Events
+  // Listen for messages
   ws.on("message", (data) => {
     let msg;
     try {
       msg = JSON.parse(data);
     } catch (err) {
-      console.error("[SERVER] Invalid JSON:", err);
+      console.error("[SERVER] Invalid JSON message =>", err);
       return;
     }
 
     if (msg.type === "spawnPlayer") {
-      // Falls gewünscht, kannst du hier noch mal respawnen oder so
       if (!players[clientId]) {
         spawnPlayer(clientId, msg.name || "NoName");
       }
@@ -57,9 +54,10 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     console.log("WS closed for", clientId);
-    // optional: players[clientId].dead = true oder remove it
+    // Falls du willst, kannst du den player tot setzen oder entfernen
+    // players[clientId].dead = true;
   });
 });
 
-// Start game loop
+// Start the game loop
 startGameLoop(wss);

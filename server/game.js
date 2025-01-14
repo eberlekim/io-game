@@ -1,20 +1,21 @@
 const { Player } = require("./player");
-const { Npc } = require("./npc");
+// Optional: NPCs
+// const { Npc } = require("./npc");
 const { updatePhysics } = require("./physics");
 
 const players = {};
-const NPCs = {}; // optional
 
 function startGameLoop(wss) {
   setInterval(() => {
-    // Update
+    // Dummy-Update: Bewege players und erhöhe Score
     Object.values(players).forEach((pl) => {
       if (!pl.dead) {
         updatePhysics(pl);
-        pl.score += 50; // Dummy
+        pl.score += 50; // Dummy-Score-Anstieg
+        // Optional: level = Math.floor(pl.score / 500);
+        pl.level = Math.floor(pl.score / 500);
       }
     });
-    // Optional: NPCs updaten ...
 
     broadcastState(wss);
   }, 100);
@@ -31,7 +32,6 @@ function getState() {
   const state = { players: {} };
   Object.entries(players).forEach(([id, pl]) => {
     state.players[id] = {
-      id: pl.id,
       x: pl.x,
       y: pl.y,
       vx: pl.vx,
@@ -57,12 +57,11 @@ function broadcastState(wss) {
       client.send(data);
     }
   });
-  // console.log(`broadcastState: sending to ${count} WS clients...`);
+  // console.log("broadcastState: sending to", count, "WS clients...");
 }
 
 module.exports = {
   players,
-  startGameLoop,
-  getState,
-  spawnPlayer
+  spawnPlayer,
+  startGameLoop
 };

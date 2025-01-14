@@ -28,8 +28,8 @@ respawnBtn.addEventListener("click", () => {
 
 // WebSocket connect
 function connectWs() {
-  // Für Render: wss://<deineSubdomain>.onrender.com
-  // oder wss://window.location.host, wenn HTTPS => WSS
+  // Bei Render => wss://(deineApp).onrender.com
+  // Sonst => wss://window.location.host
   const wsUrl = `wss://${window.location.host}`;
   console.log("[CLIENT] connectWs ->", wsUrl);
 
@@ -37,7 +37,7 @@ function connectWs() {
 
   ws.onopen = () => {
     console.log("[CLIENT] WS connected -> sending spawnPlayer & playerName");
-    // Wir senden irgendwas zum Spawn (kannst du anpassen/umschreiben)
+    // Sende an Server, damit wir ggf. respawnen
     ws.send(JSON.stringify({ type: "spawnPlayer", name: "NoName" }));
   };
 
@@ -54,28 +54,27 @@ function connectWs() {
     if (msg.type === "state") {
       players = msg.players;
 
-      // Neuer Code: NICHT sofort showDeathScreen(), sondern abwarten,
-      // bis der Server uns wirklich angelegt hat.
+      // Falls wir selber noch nicht angelegt sind, ignorieren wir diesen State
       if (!myId || !players[myId]) {
         console.log("[CLIENT] No 'me' in players => ignoring state temporarily");
-        return; // NICHT tot, nur noch nicht angelegt
+        return; 
       }
 
-      // Falls wir existieren, prüfen wir, ob wir tot sind
+      // Prüfen, ob wir tot sind
       if (players[myId].dead) {
         console.log("[CLIENT] me.dead === true => showDeathScreen");
         showDeathScreen("Server says I'm dead");
         return;
       }
 
-      // Ansonsten updaten wir das Canvas
+      // Alles okay, also updaten wir das Canvas
       renderGame(players);
     }
   };
 
   ws.onclose = () => {
     console.log("[CLIENT] WS onclose");
-    // Optional: Todesscreen oder Meldung "Verbindung verloren"
+    // Wir könnten hier showDeathScreen("WebSocket closed"); aufrufen, etc.
     showDeathScreen("WebSocket closed or lost");
   };
 
