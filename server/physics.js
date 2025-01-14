@@ -20,10 +20,10 @@ function handlePhysics(players) {
     if (p.isAi && typeof p.updateAi === "function") {
       p.updateAi();
     } else {
-      // Falls Tasten
-      if (p.up) p.vy -= ACCELERATION;
-      if (p.down) p.vy += ACCELERATION;
-      if (p.left) p.vx -= ACCELERATION;
+      // Tastatur
+      if (p.up)    p.vy -= ACCELERATION;
+      if (p.down)  p.vy += ACCELERATION;
+      if (p.left)  p.vx -= ACCELERATION;
       if (p.right) p.vx += ACCELERATION;
     }
 
@@ -33,7 +33,7 @@ function handlePhysics(players) {
     p.x += p.vx;
     p.y += p.vy;
 
-    // raus -> tot
+    // raus => tot
     if (p.x < 0 || p.x > FIELD_WIDTH || p.y < 0 || p.y > FIELD_HEIGHT) {
       p.dead = true;
     }
@@ -61,22 +61,24 @@ function resolveCollision(p1, p2) {
   const minDist = r1 + r2;
 
   if (dist < minDist) {
-    const overlap = (minDist - dist);
+    const overlap = minDist - dist;
     const half = overlap / 2;
     const nx = dx / dist;
     const ny = dy / dist;
 
+    // Auseinander schieben
     p1.x -= nx * half;
     p1.y -= ny * half;
     p2.x += nx * half;
     p2.y += ny * half;
 
-    // simpler Impuls
+    // Impuls
     const tx1 = p1.vx * nx + p1.vy * ny;
     const tx2 = p2.vx * nx + p2.vy * ny;
 
-    const f1 = p1.isAi ? 0.5 : 1.5;
-    const f2 = p2.isAi ? 0.5 : 1.5;
+    // NPC = 0.3, Player = 3.0 (noch extremer)
+    const f1 = p1.isAi ? 0.3 : 3.0;
+    const f2 = p2.isAi ? 0.3 : 3.0;
 
     p1.vx += (tx2 - tx1) * nx * f1;
     p1.vy += (tx2 - tx1) * ny * f1;

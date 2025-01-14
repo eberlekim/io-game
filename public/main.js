@@ -1,19 +1,19 @@
 console.log("[CLIENT] main.js loaded!");
 
-// Canvas
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-canvas.width = 800;
-canvas.height = 600;
+const gameContainer = document.getElementById("gameContainer");
+const mapEl = document.getElementById("map");
+
+// Spielfeld-Größe (muss SERVER-seitig übereinstimmen!)
+const FIELD_WIDTH = 1000;
+const FIELD_HEIGHT = 1000;
 
 let ws;
 let myId = null;
 let players = {};
 
-// Wir verwenden als Name "unbenannt"
 const playerName = "unbenannt";
 
-// Verbinde
+// Verbindung
 function connectWs() {
   let wsUrl;
   if (window.location.hostname === "localhost") {
@@ -21,72 +21,77 @@ function connectWs() {
   } else {
     wsUrl = window.location.origin.replace(/^http/, "ws");
   }
-  console.log("[CLIENT] connectWs ->", wsUrl);
 
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    console.log("[CLIENT] WS connected, sending spawnPlayer");
+    console.log("[CLIENT] WS connected, spawnPlayer...");
     ws.send(JSON.stringify({ type: "spawnPlayer", name: playerName }));
   };
 
   ws.onmessage = (evt) => {
-    let data = JSON.parse(evt.data);
-
+    const data = JSON.parse(evt.data);
     if (data.type === "yourId") {
       myId = data.id;
       console.log("Got myId:", myId);
-    } 
-    else if (data.type === "state") {
+    } else if (data.type === "state") {
       players = data.players;
       renderGame();
     }
   };
 
   ws.onclose = () => {
-    console.log("[CLIENT] WS onclose");
+    console.log("[CLIENT] WS closed.");
   };
 }
 
+// Rendering
 function renderGame() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!myId || !players[myId]) return;
+  const me = players[myId];
 
-  for (let id in players) {
+  // HTML-Struktur neu erzeugen
+  mapEl.innerHTML = "";
+
+  // Entitäten (Player/NPC)
+  for (const id in players) {
     const p = players[id];
     if (p.dead) continue;
 
-    // Kreise
-    ctx.beginPath();
+    const div = document.createElement("div");
+    div.classList.add("entity");
     if (p.isAi) {
-      ctx.fillStyle = "orange";
-      ctx.arc(p.x, p.y, 15, 0, 2 * Math.PI);
+      div.classList.add("npc");
     } else {
-      ctx.fillStyle = (id === myId) ? "lime" : "cyan";
-      ctx.arc(p.x, p.y, 15, 0, 2 * Math.PI);
+      div.classList.add("player");
+      if (id === myId) div.classList.add("me");
     }
-    ctx.fill();
 
-    // Name / Score
-    ctx.fillStyle = "#fff";
-    ctx.font = "12px sans-serif";
-    ctx.fillText(p.name + " (lvl " + p.level + ")", p.x + 20, p.y);
+    div.style.left = (p.x - 15) + "px";
+    div.style.top  = (p.y - 15) + "px";
+    div.textContent = p.name + " (" + p.level + ")";
+
+    mapEl.appendChild(div);
   }
+
+  // Kamera: Spieler in Fenstermitte
+  const viewportW = gameContainer.clientWidth;
+  const viewportH = gameContainer.clientHeight;
+
+  const offsetX = (viewportW / 2) - me.x;
+  const offsetY = (viewportH / 2) - me.y;
+
+  // Keine Clamping: sieht man eben "außerhalb"
+  mapEl.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
 }
 
-// Sende Input
-function sendInput(data) {
-  if (!ws) return;
-  ws.send(JSON.stringify({ type: "input", ...data }));
-}
-
-// Key-Events
+// Eingaben
 document.addEventListener("keydown", (e) => {
   if (e.key === "w") sendInput({ up: true });
   if (e.key === "a") sendInput({ left: true });
   if (e.key === "s") sendInput({ down: true });
   if (e.key === "d") sendInput({ right: true });
 });
-
 document.addEventListener("keyup", (e) => {
   if (e.key === "w") sendInput({ up: false });
   if (e.key === "a") sendInput({ left: false });
@@ -94,5 +99,10 @@ document.addEventListener("keyup", (e) => {
   if (e.key === "d") sendInput({ right: false });
 });
 
-// Starte
+function sendInput(data) {
+  if (!ws) return;
+  ws.send(JSON.stringify({ type: "input", ...data }));
+}
+
+// Los geht's
 connectWs();
