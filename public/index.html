@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>IO Game (ohne Canvas)</title>
-  <!-- Hier binden wir das externe CSS ein -->
+  <title>IO Game (without Canvas)</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="gameContainer">
-    <div id="map">
-      <!-- Spieler / NPC-DIVs werden dynamisch in main.js erzeugt -->
-    </div>
+    <div id="map"></div>
   </div>
 
+  <!-- Load the new BaseClassRender script first -->
+  <script src="classes/BaseClassRender.js"></script>
+  <!-- Then load the main client script -->
   <script src="main.js"></script>
 </body>
 </html>

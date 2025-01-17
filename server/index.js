@@ -1,3 +1,10 @@
+// This is the main server script that:
+// 1. Sets up the web server to serve game files
+// 2. Handles WebSocket connections for real-time gameplay
+// 3. Manages communication between players and the game
+// 4. Sends game updates to all connected players
+
+// Import required packages and game components
 const express = require('express');
 const path = require('path');
 const { WebSocketServer } = require('ws');
@@ -5,64 +12,72 @@ const { spawnPlayer, removePlayer, getGameState, startGameLoop, spawnNPCs, playe
 const { v4: uuidv4 } = require('uuid');
 const http = require('http');
 
+// Set up server port and create web server
 const PORT = process.env.PORT || 3001;
 const app = express();
 
-// Statische Dateien ausliefern (public/ Ordner)
+// Serve static files from public folder (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Einfache Route
+// Simple test route to check if server is running
 app.get('/hello', (req, res) => {
   res.send("IO-Game Server is running on express + ws");
 });
 
-// Erstelle HTTP-Server
+// Create HTTP server
 const server = http.createServer(app);
 
-// WebSocket-Server
+// Set up WebSocket server for real-time communication
 const wss = new WebSocketServer({ server });
 
+// Handle new player connections
 wss.on('connection', (ws) => {
   console.log("New client connected via WS");
 
-  // Erzeuge ID
+  // Create unique ID for new player
   const clientId = uuidv4().slice(0, 8) + "-";
   console.log("Assigned clientId =", clientId);
 
-  // Player spawnen
-  spawnPlayer(clientId, "unbenannt");
+  // Create new player in game
+  spawnPlayer(clientId, "unbenannt");  // "unbenannt" means "unnamed" in German
 
-  // Sende yourId
+  // Tell player their ID
   ws.send(JSON.stringify({ type: "yourId", id: clientId }));
 
-  // State-Interval (jetzt 60x pro Sekunde)
+  // Send game state to player 60 times per second
   const interval = setInterval(() => {
     const state = getGameState();
     const payload = {
       type: "state",
       players: {}
     };
+
+    
+    // Send only necessary player data
     for (let pid in state.players) {
       const p = state.players[pid];
       payload.players[pid] = {
-        x: p.x,
-        y: p.y,
-        vx: p.vx,
-        vy: p.vy,
-        dead: p.dead,
-        isAi: p.isAi,
-        name: p.name,
-        score: p.score,
-        level: p.level
+        id: p.id,
+        x: p.x,           // Position X
+        y: p.y,           // Position Y
+        vx: p.vx,         // Velocity X
+        vy: p.vy,         // Velocity Y
+        dead: p.dead,     // Is player dead?
+        isAi: p.isAi,     // Is this an NPC?
+        name: p.name,     // Player name
+        score: p.score,   // Player score
+        level: p.level,   // Player level
+        classType: p.classType
       };
     }
     try {
       ws.send(JSON.stringify(payload));
     } catch (e) {
-      // Ws already closed
+      // Connection already closed
     }
-  }, 1000 / 60);
+  }, 1000 / 60);  // 60 times per second
 
+  // Handle messages from player
   ws.on('message', (msg) => {
     let data;
     try {
@@ -70,11 +85,8 @@ wss.on('connection', (ws) => {
     } catch (e) {
       return;
     }
-    if (data.type === "spawnPlayer") {
-      // Haben wir schon
-    }
-    else if (data.type === "input") {
-      // Movement-Flags im Player speichern
+    // Handle player input (WASD keys)
+    if (data.type === "input") {
       const p = players[clientId];
       if (!p) return;
       if (typeof data.up === 'boolean') p.up = data.up;
@@ -84,6 +96,7 @@ wss.on('connection', (ws) => {
     }
   });
 
+  // Handle player disconnect
   ws.on('close', () => {
     console.log("Client disconnected", clientId);
     clearInterval(interval);
@@ -91,11 +104,11 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Serverlisten
+// Start the server
 server.listen(PORT, () => {
   console.log(`[SERVER] listening on port ${PORT}`);
 });
 
-// Game-Loop + NPC
-startGameLoop(); // 60 FPS Physics Loop (siehe game.js)
-spawnNPCs();
+// Start the game loop and create NPCs
+startGameLoop();  // Start physics and game updates
+spawnNPCs();      // Create AI-controlled characters
