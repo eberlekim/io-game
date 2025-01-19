@@ -1,10 +1,11 @@
-// This is the main server script that:
-// 1. Sets up the web server to serve game files
-// 2. Handles WebSocket connections for real-time gameplay
-// 3. Manages communication between players and the game
-// 4. Sends game updates to all connected players
+// index.js
+// ---------------------------------------------------------------
+// Main server script that:
+// 1. Sets up web server + static files
+// 2. Creates a WebSocket server
+// 3. Spawns new players & handles their input
+// 4. Sends out game updates
 
-// Import required packages and game components
 const express = require('express');
 const path = require('path');
 const { WebSocketServer } = require('ws');
@@ -12,14 +13,35 @@ const { spawnPlayer, removePlayer, getGameState, startGameLoop, spawnNPCs, playe
 const { v4: uuidv4 } = require('uuid');
 const http = require('http');
 
-// Set up server port and create web server
+
+
+
+
+// (NEW) Import your server classes or a getClassData function
+const BaseClass = require('./classes/BaseClass');
+const BoosterClass = require('./classes/BoosterClass');
+const NpcClass = require('./classes/NpcClass');
+// If you have more classes, import them as well
+// const SpikeClass = require('./classes/SpikeClass');
+
+function getClassData(type) {
+  if (type === 'BaseClass') return BaseClass;
+  if (type === 'BoosterClass') return BoosterClass;
+  if (type === 'NpcClass')  return NpcClass;
+  return null;
+}
+
+
+
+
+
+
 const PORT = process.env.PORT || 3001;
 const app = express();
 
-// Serve static files from public folder (HTML, CSS, JS)
+// Serve static files
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Simple test route to check if server is running
 app.get('/hello', (req, res) => {
   res.send("IO-Game Server is running on express + ws");
 });
@@ -27,7 +49,7 @@ app.get('/hello', (req, res) => {
 // Create HTTP server
 const server = http.createServer(app);
 
-// Set up WebSocket server for real-time communication
+// Create WebSocket server
 const wss = new WebSocketServer({ server });
 
 // Handle new player connections
@@ -39,12 +61,12 @@ wss.on('connection', (ws) => {
   console.log("Assigned clientId =", clientId);
 
   // Create new player in game
-  spawnPlayer(clientId, "unbenannt");  // "unbenannt" means "unnamed" in German
+  spawnPlayer(clientId, "unbenannt");  // "unbenannt" = "unnamed" in German
 
   // Tell player their ID
   ws.send(JSON.stringify({ type: "yourId", id: clientId }));
 
-  // Send game state to player 60 times per second
+  // Send game state 60 times/sec
   const interval = setInterval(() => {
     const state = getGameState();
     const payload = {
@@ -52,51 +74,61 @@ wss.on('connection', (ws) => {
       players: {}
     };
 
-    
-    // Send only necessary player data
     for (let pid in state.players) {
       const p = state.players[pid];
+      
+      // Find the class data for this player's classType
+      const cd = getClassData(p.classType);
+
       payload.players[pid] = {
         id: p.id,
-        x: p.x,           // Position X
-        y: p.y,           // Position Y
-        vx: p.vx,         // Velocity X
-        vy: p.vy,         // Velocity Y
-        dead: p.dead,     // Is player dead?
-        isAi: p.isAi,     // Is this an NPC?
-        name: p.name,     // Player name
-        score: p.score,   // Player score
-        level: p.level,   // Player level
-        classType: p.classType
+        x: p.x,
+        y: p.y,
+        vx: p.vx,
+        vy: p.vy,
+        dead: p.dead,
+        isAi: p.isAi,
+        name: p.name,
+        score: p.score,
+        level: p.level,
+        classType: p.classType,
+
+        // (NEW) Send shapes array so client can debug-render hitboxes
+        shapes: cd ? cd.shapes : []
       };
     }
+
     try {
       ws.send(JSON.stringify(payload));
     } catch (e) {
-      // Connection already closed
+      // Connection closed
     }
-  }, 1000 / 60);  // 60 times per second
+  }, 1000 / 60);
 
-  // Handle messages from player
+  // Handle incoming messages
   ws.on('message', (msg) => {
+    console.log("Server received raw message:", msg.toString()); // Debug log
     let data;
     try {
       data = JSON.parse(msg);
     } catch (e) {
       return;
     }
-    // Handle player input (WASD keys)
     if (data.type === "input") {
       const p = players[clientId];
       if (!p) return;
+      
       if (typeof data.up === 'boolean') p.up = data.up;
       if (typeof data.down === 'boolean') p.down = data.down;
       if (typeof data.left === 'boolean') p.left = data.left;
       if (typeof data.right === 'boolean') p.right = data.right;
+      if (data.switchClass === true) {
+        p.switchClass();
+      }
     }
   });
 
-  // Handle player disconnect
+  // Handle disconnect
   ws.on('close', () => {
     console.log("Client disconnected", clientId);
     clearInterval(interval);
@@ -104,11 +136,10 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Start the server
 server.listen(PORT, () => {
   console.log(`[SERVER] listening on port ${PORT}`);
 });
 
-// Start the game loop and create NPCs
-startGameLoop();  // Start physics and game updates
-spawnNPCs();      // Create AI-controlled characters
+// Start the game loop & spawn some NPCs
+startGameLoop();
+spawnNPCs();

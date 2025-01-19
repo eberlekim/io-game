@@ -1,3 +1,5 @@
+// npc.js
+// ---------------------------------------------------------------
 // This script creates AI-controlled characters (NPCs) that:
 // 1. Move around randomly in the game
 // 2. Have basic properties like position and speed
@@ -10,6 +12,10 @@ class NPC {
     this.id = id;           // Unique ID for this NPC
     this.name = "NPC";      // Display name
     this.isAi = true;       // Marks this as an AI-controlled character
+
+    // (NEW) Set a classType so we can do multi-shape collision
+    // E.g., "NpcClass" -> the server can define how that shape looks
+    this.classType = "NpcClass";
 
     // Position (randomly placed on the map)
     this.x = Math.random() * 600 + 100;    // X position (100-700)
@@ -36,5 +42,4 @@ class NPC {
   }
 }
 
-// Make NPC class available to other parts of the game
 module.exports = { NPC };
